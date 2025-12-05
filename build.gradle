@@ -1,0 +1,73 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.8'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.java.agent'
+version = '1.0.0'
+description = 'agent'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('springAiVersion', "1.1.0")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+    dependencies {
+        dependency 'org.apache.commons:commons-lang3:3.20.0'
+        dependency 'org.apache.commons:commons-collections4:4.5.0'
+        dependency 'com.google.guava:guava:33.5.0-jre'
+    }
+}
+
+dependencies {
+
+    implementation(
+            'org.apache.commons:commons-lang3',
+            'org.apache.commons:commons-collections4',
+            'com.google.guava:guava'
+    )
+
+    implementation(
+            'org.springframework.boot:spring-boot-starter-web',
+            'org.springframework.boot:spring-boot-starter-actuator',
+    )
+
+    implementation(
+            'org.springframework.ai:spring-ai-advisors-vector-store',
+            'org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc',
+            'org.springframework.ai:spring-ai-starter-model-openai',
+            'org.springframework.ai:spring-ai-starter-vector-store-redis',
+    )
+
+	compileOnly 'org.projectlombok:lombok'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	runtimeOnly 'com.mysql:mysql-connector-j'
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
