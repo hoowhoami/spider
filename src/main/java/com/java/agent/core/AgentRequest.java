@@ -4,6 +4,7 @@ import lombok.Data;
 
 /**
  * Agent request with conversation context
+ * @author whoami
  */
 @Data
 public class AgentRequest {

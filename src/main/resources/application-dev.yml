@@ -3,7 +3,8 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: 'jdbc:mysql://127.0.0.1:3306/agent?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&autoReconnect=true&failOverReadOnly=false'
     username: 'root'
-    password: '!QAZ2wsx'
+    #password: '!QAZ2wsx'
+    password: 'admin'
 
   ai:
     openai:

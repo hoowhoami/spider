@@ -7,29 +7,24 @@ import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryReposito
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * @author whoami
+ */
 @Configuration
 public class AgentConfig {
 
-    /**
-     * Create ChatMemory bean with message window strategy
-     * Stores last N messages per conversation in memory
-     */
     @Bean
     public ChatMemory chatMemory(JdbcChatMemoryRepository jdbcChatMemoryRepository) {
         return MessageWindowChatMemory.builder()
-                .chatMemoryRepository(jdbcChatMemoryRepository)  // 使用数据库存储
-                .maxMessages(10)  // 每个会话保留最近10条消息
+                .chatMemoryRepository(jdbcChatMemoryRepository)
+                .maxMessages(10)
                 .build();
     }
 
-    /**
-     * Create MessageChatMemoryAdvisor bean
-     * This advisor automatically manages conversation history
-     */
     @Bean
     public MessageChatMemoryAdvisor messageChatMemoryAdvisor(ChatMemory chatMemory) {
         return MessageChatMemoryAdvisor.builder(chatMemory)
-                .order(0)  // 设置优先级，越小越先执行
+                .order(0)
                 .build();
     }
 

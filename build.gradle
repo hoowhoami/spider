@@ -1,8 +1,9 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.8'
-	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.springframework.boot' version '4.0.0'
 }
+
+apply plugin: 'io.spring.dependency-management'
 
 group = 'com.java.agent'
 version = '1.0.0'
@@ -22,10 +23,16 @@ configurations {
 
 repositories {
 	mavenCentral()
+	maven { url 'https://repo.spring.io/milestone' }
+	maven { url 'https://repo.spring.io/snapshot' }
+	maven {
+		name = 'Central Portal Snapshots'
+		url = 'https://central.sonatype.com/repository/maven-snapshots/'
+	}
 }
 
 ext {
-	set('springAiVersion', "1.1.0")
+	set('springAiVersion', "2.0.0-SNAPSHOT")
 }
 
 dependencyManagement {

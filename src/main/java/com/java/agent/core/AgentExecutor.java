@@ -1,5 +1,6 @@
 package com.java.agent.core;
 
+import com.java.agent.tool.AgentTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -13,8 +14,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Agent executor with conversation memory support
- * Supports multi-turn conversations with automatic history management
+ * Agent executor with conversation memory and automatic tool discovery
+ *
+ * @author whoami
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -22,11 +24,10 @@ import java.util.UUID;
 public class AgentExecutor {
 
     private final ChatClient.Builder builder;
-    private final ToolRegistry toolRegistry;
     private final MessageChatMemoryAdvisor messageChatMemoryAdvisor;
+    private final List<AgentTool> tools;
 
     public String execute(AgentRequest request) {
-        // Get or generate conversation ID
         String conversationId = request.getConversationId();
         if (StringUtils.isBlank(conversationId)) {
             conversationId = UUID.randomUUID().toString();
@@ -38,30 +39,19 @@ public class AgentExecutor {
         final String finalConversationId = conversationId;
 
         try {
-            // Get all registered tools from registry
-            List<AgentTool> tools = toolRegistry.getAllTools();
-            log.info("Executing with {} registered tools for conversation {}", tools.size(), conversationId);
 
-            // Convert plugins to ToolCallbacks
             List<ToolCallback> toolCallbacks = tools.stream()
-                    .filter(tool -> tool instanceof ToolPlugin)
-                    .map(tool -> ToolCallbackAdapter.from((ToolPlugin) tool))
+                    .flatMap(tool -> tool.getToolCallbacks().stream())
                     .toList();
 
-            log.debug("Created {} tool callbacks", toolCallbacks.size());
+            log.info("Executing with {} tools for conversation {}", toolCallbacks.size(), conversationId);
 
-            // Build ChatClient with MessageChatMemoryAdvisor
-            ChatClient chatClient = builder
-                    .defaultAdvisors(messageChatMemoryAdvisor)  // 添加对话历史记忆 Advisor
-                    .build();
-
-            // Execute chat with tools and conversation memory
-            // conversationId 通过 advisorParams 传递给 MessageChatMemoryAdvisor
-            return chatClient
+            return builder
+                    .build()
                     .prompt()
                     .user(request.getPrompt())
-                    .advisors(spec -> spec
-                            .param(ChatMemory.CONVERSATION_ID, finalConversationId))  // 传递会话ID
+                    .advisors(messageChatMemoryAdvisor)
+                    .advisors(spec -> spec.param(ChatMemory.CONVERSATION_ID, finalConversationId))
                     .toolCallbacks(toolCallbacks)
                     .call()
                     .content();
