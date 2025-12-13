@@ -1,26 +1,24 @@
 package com.java.agent.controller;
 
-import com.java.agent.core.AgentExecutor;
 import com.java.agent.core.AgentRequest;
+import com.java.agent.core.AgentResponse;
+import com.java.agent.core.AgentExecutor;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
+ * Agent REST API
  * @author whoami
  */
-@RequiredArgsConstructor
-@RequestMapping("/api/agent")
 @RestController
+@RequestMapping("/api/agent")
+@RequiredArgsConstructor
 public class AgentController {
 
-    private final AgentExecutor executor;
+    private final AgentExecutor agentExecutor;
 
     @PostMapping("/chat")
-    public String chat(@RequestBody AgentRequest request) {
-        return executor.execute(request);
+    public AgentResponse chat(@RequestBody AgentRequest request) {
+        return agentExecutor.chat(request);
     }
-
 }
