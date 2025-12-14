@@ -12,13 +12,13 @@ public class AgentResponse {
 
     private String conversationId;
     private String status;
-    private String message;
+    private String content;
 
-    public static AgentResponse ok(String conversationId, String message) {
+    public static AgentResponse ok(String conversationId, String content) {
         AgentResponse response = new AgentResponse();
         response.conversationId = conversationId;
         response.status = "success";
-        response.message = message;
+        response.content = content;
         return response;
     }
 

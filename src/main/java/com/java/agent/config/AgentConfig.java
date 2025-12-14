@@ -1,6 +1,7 @@
 package com.java.agent.config;
 
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
@@ -26,6 +27,11 @@ public class AgentConfig {
         return MessageChatMemoryAdvisor.builder(chatMemory)
                 .order(0)
                 .build();
+    }
+
+    @Bean
+    public SimpleLoggerAdvisor simpleLoggerAdvisor() {
+        return new SimpleLoggerAdvisor();
     }
 
 }

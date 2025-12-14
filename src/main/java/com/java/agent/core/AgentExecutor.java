@@ -1,5 +1,6 @@
 package com.java.agent.core;
 
+import com.java.agent.config.SystemPromptConfig;
 import com.java.agent.tool.AgentTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class AgentExecutor {
 
         String response = builder.build()
                 .prompt()
+                .system(SystemPromptConfig.SYSTEM_PROMPT)
                 .user(request.getPrompt())
                 .toolCallbacks(toolCallbacks)
                 .advisors(messageChatMemoryAdvisor)
