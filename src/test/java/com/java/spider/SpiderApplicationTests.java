@@ -1,10 +1,10 @@
-package com.java.agent;
+package com.java.spider;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class AgentApplicationTests {
+class SpiderApplicationTests {
 
 	@Test
 	void contextLoads() {
