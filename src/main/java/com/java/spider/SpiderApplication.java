@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * @author whoami
+ * C
  */
 @SpringBootApplication
 public class SpiderApplication {

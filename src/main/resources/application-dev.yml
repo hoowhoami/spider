@@ -9,3 +9,11 @@ spring:
 logging:
   level:
     com.java.spider: DEBUG
+
+
+spider:
+  llm:
+    openai:
+      base-url: 'https://llm.indrin.cn/v1'
+      api-key: 'sk-JKenasNCDmGPuJ102JoZTnOnYBxHfgvZkThdeKT4pobuTbBE'
+      model-name: 'gpt-5-mini'
