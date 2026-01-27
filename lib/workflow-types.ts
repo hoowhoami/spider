@@ -31,12 +31,18 @@ export interface InputNodeData extends BaseNodeData {
   urls?: string[];
   inputType: 'single' | 'multiple' | 'search';
   searchQuery?: string;
+  useBrowser?: boolean; // Use headless browser for dynamic pages
+  waitForSelector?: string; // Wait for specific element
+  timeout?: number; // Page load timeout in ms
 }
 
 export interface AIExtractNodeData extends BaseNodeData {
   extractionType: 'content' | 'structured' | 'links' | 'analysis';
   structuredFields?: string[];
   customPrompt?: string;
+  useBrowser?: boolean; // Use headless browser for dynamic pages
+  waitForSelector?: string; // Wait for specific element
+  timeout?: number; // Page load timeout in ms
 }
 
 export interface AIAnalyzeNodeData extends BaseNodeData {
@@ -55,6 +61,9 @@ export interface BatchCrawlNodeData extends BaseNodeData {
   maxDepth: number;
   maxPages: number;
   followLinks: boolean;
+  useBrowser?: boolean; // Use headless browser for dynamic pages
+  waitForSelector?: string; // Wait for specific element
+  timeout?: number; // Page load timeout in ms
 }
 
 export interface SearchEngineNodeData extends BaseNodeData {

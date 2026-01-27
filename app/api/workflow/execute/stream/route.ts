@@ -151,7 +151,12 @@ export async function POST(request: NextRequest) {
 
             // Execute node
             try {
-              const result = await executeNode(currentNode, inputData, spider);
+              const result = await executeNode(
+                currentNode,
+                inputData,
+                spider,
+                sendLog
+              );
               nodeResults.set(currentNode.id, result);
               nodesExecuted++;
 
@@ -226,6 +231,9 @@ export async function POST(request: NextRequest) {
                 console.error('[API Stream] 日志记录失败:', dbError);
               }
 
+              // Close browser on error
+              await spider.closeBrowser();
+
               // 更新执行记录为失败
               try {
                 executionDb.update(executionId, {
@@ -266,10 +274,16 @@ export async function POST(request: NextRequest) {
             timestamp: new Date().toISOString(),
           });
 
+          // Close browser if it was used
+          await spider.closeBrowser();
+
           controller.close();
         } catch (error) {
           const errorMsg =
             error instanceof Error ? error.message : String(error);
+
+          // Close browser on error
+          await spider.closeBrowser();
 
           // 更新执行记录为失败
           try {
@@ -314,17 +328,37 @@ export async function POST(request: NextRequest) {
 async function executeNode(
   node: WorkflowNode,
   inputData: any[],
-  spider: AISpider
+  spider: AISpider,
+  sendLog: (log: any) => void
 ): Promise<any> {
   const nodeData = node.data as any;
+
+  // 创建日志函数
+  const log = (
+    message: string,
+    level: 'info' | 'success' | 'error' | 'warning' = 'info'
+  ) => {
+    sendLog({
+      type: 'log',
+      nodeId: node.id,
+      nodeName: nodeData.label,
+      message,
+      level,
+      timestamp: new Date().toISOString(),
+    });
+  };
 
   switch (node.type) {
     case 'input': {
       if (nodeData.inputType === 'single') {
+        log(`输入单个 URL: ${nodeData.url}`, 'info');
         return { urls: [nodeData.url] };
       } else if (nodeData.inputType === 'multiple') {
-        return { urls: nodeData.urls || [] };
+        const urls = nodeData.urls || [];
+        log(`输入 ${urls.length} 个 URL`, 'info');
+        return { urls };
       } else if (nodeData.inputType === 'search') {
+        log(`搜索查询: ${nodeData.searchQuery}`, 'info');
         return { searchQuery: nodeData.searchQuery, urls: [] };
       }
       return { urls: [] };
@@ -332,27 +366,49 @@ async function executeNode(
 
     case 'ai-extract': {
       const urls = inputData.flatMap((data) => data?.urls || []);
+      log(`准备提取 ${urls.length} 个 URL 的数据`, 'info');
       const results = [];
 
-      for (const url of urls) {
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        log(`[${i + 1}/${urls.length}] 开始处理: ${url}`, 'info');
+
         try {
           const result = await spider.crawl({
             url,
             extractionType: nodeData.extractionType || 'content',
             structuredFields: nodeData.structuredFields,
             customPrompt: nodeData.customPrompt,
+            useBrowser: nodeData.useBrowser || false,
+            waitForSelector: nodeData.waitForSelector,
+            timeout: nodeData.timeout,
+            onLog: (message, level) => {
+              log(`  ${message}`, level);
+            },
           });
           results.push(result);
+          log(`✓ [${i + 1}/${urls.length}] 完成: ${url}`, 'success');
         } catch (error) {
+          const errorMsg =
+            error instanceof Error ? error.message : String(error);
+          log(
+            `✗ [${i + 1}/${urls.length}] 失败: ${url} - ${errorMsg}`,
+            'error'
+          );
           console.error(`Error crawling ${url}:`, error);
         }
       }
 
+      log(`提取完成，共 ${results.length} 条结果`, 'success');
       return { results, urls };
     }
 
     case 'ai-analyze': {
       const results = inputData.flatMap((data) => data?.results || []);
+      log(
+        `分析 ${results.length} 条数据 (类型: ${nodeData.analysisType})`,
+        'info'
+      );
       const analyzed = [];
 
       for (const result of results) {
@@ -362,15 +418,21 @@ async function executeNode(
         });
       }
 
+      log(`✓ 分析完成`, 'success');
       return { results: analyzed };
     }
 
     case 'ai-filter': {
       const results = inputData.flatMap((data) => data?.results || []);
+      log(
+        `过滤 ${results.length} 条数据 (类型: ${nodeData.filterType})`,
+        'info'
+      );
       let filtered = results;
 
       if (nodeData.filterType === 'keyword') {
         const keywords = nodeData.keywords || [];
+        log(`使用关键词过滤: ${keywords.join(', ')}`, 'info');
         filtered = results.filter((result: any) => {
           const content = JSON.stringify(result).toLowerCase();
           return keywords.some((keyword: string) =>
@@ -378,6 +440,7 @@ async function executeNode(
           );
         });
       } else if (nodeData.filterType === 'regex') {
+        log(`使用正则表达式过滤: ${nodeData.regex}`, 'info');
         const regex = new RegExp(nodeData.regex || '.*');
         filtered = results.filter((result: any) => {
           const content = JSON.stringify(result);
@@ -385,30 +448,61 @@ async function executeNode(
         });
       }
 
+      log(
+        `✓ 过滤完成，保留 ${filtered.length}/${results.length} 条数据`,
+        'success'
+      );
       return { results: filtered };
     }
 
     case 'batch-crawl': {
       const urls = inputData.flatMap((data) => data?.urls || []);
+      const maxPages = nodeData.maxPages || 10;
+      log(
+        `批量抓取 ${Math.min(urls.length, maxPages)} 个页面 (最大深度: ${nodeData.maxDepth || 1})`,
+        'info'
+      );
       const results = [];
 
-      for (const url of urls.slice(0, nodeData.maxPages || 10)) {
+      for (let i = 0; i < Math.min(urls.length, maxPages); i++) {
+        const url = urls[i];
+        log(
+          `[${i + 1}/${Math.min(urls.length, maxPages)}] 抓取: ${url}`,
+          'info'
+        );
+
         try {
           const result = await spider.crawl({
             url,
             extractionType: 'links',
             maxDepth: nodeData.maxDepth || 1,
+            onLog: (message, level) => {
+              log(`  ${message}`, level);
+            },
           });
           results.push(result);
+          log(
+            `✓ [${i + 1}/${Math.min(urls.length, maxPages)}] 完成`,
+            'success'
+          );
         } catch (error) {
+          log(
+            `✗ [${i + 1}/${Math.min(urls.length, maxPages)}] 失败: ${error}`,
+            'error'
+          );
           console.error(`Error crawling ${url}:`, error);
         }
       }
 
+      log(`✓ 批量抓取完成，共 ${results.length} 条结果`, 'success');
       return { results };
     }
 
     case 'search-engine': {
+      log(
+        `搜索引擎: ${nodeData.searchEngine}, 查询: ${nodeData.query}`,
+        'info'
+      );
       return {
         results: [],
         searchQuery: nodeData.query,
@@ -418,12 +512,22 @@ async function executeNode(
 
     case 'data-transform': {
       const results = inputData.flatMap((data) => data?.results || []);
+      log(
+        `转换 ${results.length} 条数据 (类型: ${nodeData.transformType})`,
+        'info'
+      );
+      log(`✓ 转换完成`, 'success');
       return { results };
     }
 
     case 'export': {
       const results = inputData.flatMap((data) => data?.results || []);
       const format = nodeData.exportFormat || 'json';
+      log(
+        `导出 ${results.length} 条数据为 ${format.toUpperCase()} 格式`,
+        'info'
+      );
+      log(`✓ 导出完成`, 'success');
 
       return {
         exported: true,
@@ -435,6 +539,10 @@ async function executeNode(
 
     case 'output': {
       const results = inputData.flatMap((data) => data?.results || data);
+      log(
+        `输出 ${Array.isArray(results) ? results.length : 1} 条数据 (类型: ${nodeData.outputType})`,
+        'info'
+      );
       return {
         outputType: nodeData.outputType,
         data: results,

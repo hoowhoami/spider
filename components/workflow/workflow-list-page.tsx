@@ -57,7 +57,7 @@ export function WorkflowListPage() {
       // 转换格式
       const loadedWorkflows: WorkflowMetadata[] = dbWorkflows.map(
         (wf: any) => ({
-          id: wf.id.replace('workflow_', ''),
+          id: wf.id, // 保留完整的 ID，包括 workflow_ 前缀
           name: wf.name || zh.workflow.untitled,
           description: wf.description,
           nodeCount: wf.nodes?.length || 0,
@@ -98,7 +98,7 @@ export function WorkflowListPage() {
     if (confirm(zh.workflow.confirmDelete.replace('{name}', name))) {
       try {
         // 从数据库删除
-        const response = await fetch(`/api/workflow?id=workflow_${id}`, {
+        const response = await fetch(`/api/workflow?id=${id}`, {
           method: 'DELETE',
         });
 
@@ -221,109 +221,105 @@ export function WorkflowListPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="mb-2 text-3xl font-bold">{zh.workflow.management}</h1>
-          <p className="text-muted-foreground">
-            {zh.workflow.managementDescription}
-          </p>
-        </div>
-        <Button onClick={handleCreateNew} size="lg" className="gap-2">
-          <Plus className="h-5 w-5" />
-          {zh.workflow.createNew}
-        </Button>
-      </div>
-
+    <div className="flex h-full flex-col">
       {/* Workflow Grid */}
-      {workflows.length === 0 ? (
-        <div className="flex h-[400px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
-          <WorkflowIcon className="mb-4 h-16 w-16 text-muted-foreground" />
-          <h3 className="mb-2 text-xl font-semibold">
-            {zh.workflow.noWorkflows}
-          </h3>
-          <p className="mb-6 text-muted-foreground">
-            {zh.workflow.noWorkflowsDescription}
-          </p>
-          <Button onClick={handleCreateNew} className="gap-2">
-            <Plus className="h-5 w-5" />
-            {zh.workflow.createNew}
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {workflows.map((workflow) => (
-            <Card
-              key={workflow.id}
-              className="transition-shadow hover:shadow-lg"
-            >
-              <CardHeader>
-                <CardTitle className="flex items-start justify-between">
-                  <span className="line-clamp-1">{workflow.name}</span>
-                  <WorkflowIcon className="ml-2 h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                </CardTitle>
-                {workflow.description && (
-                  <CardDescription className="line-clamp-2">
-                    {workflow.description}
-                  </CardDescription>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4 text-sm text-muted-foreground">
-                  <div>
-                    <span className="font-medium">{workflow.nodeCount}</span>{' '}
-                    {zh.common.nodesCount}
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        {workflows.length === 0 ? (
+          <div className="flex h-full min-h-[400px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
+            <WorkflowIcon className="mb-4 h-16 w-16 text-muted-foreground" />
+            <h3 className="mb-2 text-xl font-semibold">
+              {zh.workflow.noWorkflows}
+            </h3>
+            <p className="mb-6 text-center text-muted-foreground">
+              {zh.workflow.noWorkflowsDescription}
+            </p>
+            <Button onClick={handleCreateNew} className="gap-2">
+              <Plus className="h-5 w-5" />
+              {zh.workflow.createNew}
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {workflows.map((workflow) => (
+              <Card
+                key={workflow.id}
+                className="flex flex-col transition-all hover:shadow-lg"
+              >
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-start justify-between gap-2">
+                    <span className="line-clamp-2 flex-1 text-base">
+                      {workflow.name}
+                    </span>
+                    <WorkflowIcon className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                  </CardTitle>
+                  {workflow.description && (
+                    <CardDescription className="line-clamp-2 text-xs">
+                      {workflow.description}
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col justify-between">
+                  <div className="mb-3 flex gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold">
+                        {workflow.nodeCount}
+                      </span>
+                      <span className="text-xs">{zh.common.nodesCount}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold">
+                        {workflow.edgeCount}
+                      </span>
+                      <span className="text-xs">
+                        {zh.common.connectionsCount}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium">{workflow.edgeCount}</span>{' '}
-                    {zh.common.connectionsCount}
+                  <div className="mb-3 text-xs text-muted-foreground">
+                    {zh.workflow.updatedAt} {formatDate(workflow.lastUpdated)}
                   </div>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {zh.workflow.updatedAt} {formatDate(workflow.lastUpdated)}
-                </div>
-              </CardContent>
-              <CardFooter className="flex gap-2">
-                <Button
-                  onClick={() => handleEdit(workflow.id)}
-                  variant="default"
-                  size="sm"
-                  className="flex-1 gap-1"
-                >
-                  <Edit className="h-4 w-4" />
-                  {zh.workflow.edit}
-                </Button>
-                <Button
-                  onClick={() => handleDuplicate(workflow)}
-                  variant="outline"
-                  size="sm"
-                  title={zh.workflow.duplicate}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  onClick={() => handleExport(workflow)}
-                  variant="outline"
-                  size="sm"
-                  title={zh.workflow.export}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button
-                  onClick={() => handleDelete(workflow.id, workflow.name)}
-                  variant="outline"
-                  size="sm"
-                  title={zh.workflow.delete}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
+                </CardContent>
+                <CardFooter className="flex gap-2 border-t pt-3">
+                  <Button
+                    onClick={() => handleEdit(workflow.id)}
+                    variant="default"
+                    size="sm"
+                    className="flex-1 gap-1"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span className="hidden sm:inline">{zh.workflow.edit}</span>
+                  </Button>
+                  <Button
+                    onClick={() => handleDuplicate(workflow)}
+                    variant="outline"
+                    size="sm"
+                    title={zh.workflow.duplicate}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={() => handleExport(workflow)}
+                    variant="outline"
+                    size="sm"
+                    title={zh.workflow.export}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={() => handleDelete(workflow.id, workflow.name)}
+                    variant="outline"
+                    size="sm"
+                    title={zh.workflow.delete}
+                    className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

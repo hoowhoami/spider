@@ -1,4 +1,5 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import puppeteer, { Browser, Page } from 'puppeteer';
 
 export interface CrawlerConfig {
   url: string;
@@ -6,6 +7,13 @@ export interface CrawlerConfig {
   extractionType: 'content' | 'structured' | 'links' | 'analysis';
   structuredFields?: string[];
   customPrompt?: string;
+  useBrowser?: boolean; // Use headless browser for dynamic pages
+  waitForSelector?: string; // Optional: wait for specific element
+  timeout?: number; // Page load timeout in ms (default: 30000)
+  onLog?: (
+    message: string,
+    level?: 'info' | 'success' | 'error' | 'warning'
+  ) => void; // Real-time logging callback
 }
 
 export interface CrawlResult {
@@ -24,6 +32,7 @@ export interface CrawlResult {
 export class AISpider {
   private apiKey: string;
   private baseURL?: string;
+  private browser: Browser | null = null;
 
   constructor(apiKey: string, baseURL?: string) {
     this.apiKey = apiKey;
@@ -31,11 +40,29 @@ export class AISpider {
   }
 
   async crawl(config: CrawlerConfig): Promise<CrawlResult> {
+    const log = (
+      message: string,
+      level: 'info' | 'success' | 'error' | 'warning' = 'info'
+    ) => {
+      if (config.onLog) {
+        config.onLog(message, level);
+      }
+    };
+
+    log(`开始抓取: ${config.url}`, 'info');
+
     // Fetch the webpage content
-    const htmlContent = await this.fetchPage(config.url);
+    log(`正在获取网页内容...`, 'info');
+    const htmlContent = await this.fetchPage(config);
+    log(
+      `✓ 网页内容获取成功 (${(htmlContent.length / 1024).toFixed(2)} KB)`,
+      'success'
+    );
 
     // Use Claude Agent SDK to extract information based on the extraction type
+    log(`正在使用 AI 提取信息 (类型: ${config.extractionType})...`, 'info');
     const result = await this.extractWithAI(htmlContent, config);
+    log(`✓ AI 提取完成`, 'success');
 
     return {
       url: config.url,
@@ -47,8 +74,66 @@ export class AISpider {
     };
   }
 
-  private async fetchPage(url: string): Promise<string> {
+  private async getBrowser(): Promise<Browser> {
+    if (!this.browser) {
+      this.browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+        ],
+      });
+    }
+    return this.browser;
+  }
+
+  async closeBrowser(): Promise<void> {
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
+    }
+  }
+
+  private async fetchPage(config: CrawlerConfig): Promise<string> {
+    const log = (
+      message: string,
+      level: 'info' | 'success' | 'error' | 'warning' = 'info'
+    ) => {
+      if (config.onLog) {
+        config.onLog(message, level);
+      }
+    };
+
+    if (config.useBrowser) {
+      log('使用浏览器模式抓取...', 'info');
+      return this.fetchPageWithBrowser(config);
+    } else {
+      log('使用 HTTP 请求抓取...', 'info');
+      return this.fetchPageWithFetch(config.url, config.onLog);
+    }
+  }
+
+  private async fetchPageWithFetch(
+    url: string,
+    onLog?: (
+      message: string,
+      level?: 'info' | 'success' | 'error' | 'warning'
+    ) => void
+  ): Promise<string> {
+    const log = (
+      message: string,
+      level: 'info' | 'success' | 'error' | 'warning' = 'info'
+    ) => {
+      if (onLog) {
+        onLog(message, level);
+      }
+    };
+
     try {
+      log(`发送 HTTP 请求到 ${url}`, 'info');
       const response = await fetch(url, {
         headers: {
           'User-Agent':
@@ -60,9 +145,68 @@ export class AISpider {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      log(`✓ HTTP 响应成功 (状态码: ${response.status})`, 'success');
       return await response.text();
     } catch (error) {
+      log(`✗ 请求失败: ${error}`, 'error');
       throw new Error(`Failed to fetch page: ${error}`);
+    }
+  }
+
+  private async fetchPageWithBrowser(config: CrawlerConfig): Promise<string> {
+    const log = (
+      message: string,
+      level: 'info' | 'success' | 'error' | 'warning' = 'info'
+    ) => {
+      if (config.onLog) {
+        config.onLog(message, level);
+      }
+    };
+
+    log('启动浏览器...', 'info');
+    const browser = await this.getBrowser();
+    log('✓ 浏览器已启动', 'success');
+
+    const page = await browser.newPage();
+    log('创建新页面...', 'info');
+
+    try {
+      // Set user agent
+      await page.setUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      );
+
+      // Set viewport
+      await page.setViewport({ width: 1920, height: 1080 });
+
+      // Navigate to the page
+      const timeout = config.timeout || 30000;
+      log(`导航到 ${config.url} (超时: ${timeout}ms)`, 'info');
+      await page.goto(config.url, {
+        waitUntil: 'networkidle2',
+        timeout,
+      });
+      log('✓ 页面加载完成', 'success');
+
+      // Wait for specific selector if provided
+      if (config.waitForSelector) {
+        log(`等待选择器: ${config.waitForSelector}`, 'info');
+        await page.waitForSelector(config.waitForSelector, { timeout: 10000 });
+        log('✓ 选择器已出现', 'success');
+      }
+
+      // Get the rendered HTML
+      log('提取页面 HTML...', 'info');
+      const html = await page.content();
+      log(`✓ HTML 提取完成 (${(html.length / 1024).toFixed(2)} KB)`, 'success');
+
+      return html;
+    } catch (error) {
+      log(`✗ 浏览器抓取失败: ${error}`, 'error');
+      throw new Error(`Failed to fetch page with browser: ${error}`);
+    } finally {
+      await page.close();
+      log('页面已关闭', 'info');
     }
   }
 
@@ -70,9 +214,20 @@ export class AISpider {
     htmlContent: string,
     config: CrawlerConfig
   ): Promise<Partial<CrawlResult>> {
+    const log = (
+      message: string,
+      level: 'info' | 'success' | 'error' | 'warning' = 'info'
+    ) => {
+      if (config.onLog) {
+        config.onLog(message, level);
+      }
+    };
+
     const prompt = this.buildPrompt(htmlContent, config);
 
-    console.log('Sending request to Claude Agent SDK...');
+    log('构建 AI 提示词...', 'info');
+    log(`提示词长度: ${prompt.length} 字符`, 'info');
+    log('发送请求到 Claude Agent SDK...', 'info');
 
     // Use the Agent SDK query function
     const agentQuery = query({
@@ -95,14 +250,15 @@ export class AISpider {
 
     // Iterate through the messages from the agent
     for await (const message of agentQuery) {
-      console.log('Agent message:', message.type);
+      log(`Agent 消息类型: ${message.type}`, 'info');
 
       if (message.type === 'result') {
         if (message.subtype === 'success') {
           responseText = message.result;
-          console.log('Claude Agent SDK response received');
-          console.log('Response text length:', responseText.length);
+          log(`✓ Claude Agent SDK 响应接收完成`, 'success');
+          log(`响应长度: ${responseText.length} 字符`, 'info');
         } else {
+          log(`✗ Agent 查询失败: ${message.subtype}`, 'error');
           throw new Error(`Agent query failed: ${message.subtype}`);
         }
       } else if (message.type === 'assistant') {
@@ -111,10 +267,12 @@ export class AISpider {
         const content = message.content;
         if (typeof content === 'string') {
           responseText += content;
+          log(`接收到 AI 响应片段 (${content.length} 字符)`, 'info');
         } else if (Array.isArray(content)) {
           for (const block of content) {
             if (block.type === 'text') {
               responseText += block.text;
+              log(`接收到 AI 文本块 (${block.text.length} 字符)`, 'info');
             }
           }
         }
@@ -122,10 +280,15 @@ export class AISpider {
     }
 
     if (!responseText) {
+      log('✗ Claude Agent SDK 未返回响应', 'error');
       throw new Error('No response from Claude Agent SDK');
     }
 
-    return this.parseResponse(responseText, config.extractionType);
+    log('解析 AI 响应...', 'info');
+    const result = this.parseResponse(responseText, config.extractionType);
+    log('✓ 响应解析完成', 'success');
+
+    return result;
   }
 
   private buildPrompt(htmlContent: string, config: CrawlerConfig): string {
@@ -211,16 +374,30 @@ ${truncatedHtml}`;
     extractionType: string
   ): Partial<CrawlResult> {
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+      // Try to extract JSON from markdown code blocks first
+      const markdownJsonMatch = responseText.match(
+        /```json\s*([\s\S]*?)\s*```/
+      );
+      let jsonText: string | null = null;
+
+      if (markdownJsonMatch) {
+        jsonText = markdownJsonMatch[1];
+      } else {
+        // Try to extract JSON without markdown
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonText = jsonMatch[0];
+        }
+      }
+
+      if (jsonText) {
+        const parsed = JSON.parse(jsonText);
 
         switch (extractionType) {
           case 'content':
             return {
               title: parsed.title,
-              content: parsed.content,
+              content: parsed.content || JSON.stringify(parsed, null, 2),
             };
           case 'structured':
             return {
@@ -234,15 +411,18 @@ ${truncatedHtml}`;
           case 'analysis':
             return {
               title: parsed.title,
-              analysis: parsed.analysis,
+              analysis: parsed.analysis || JSON.stringify(parsed, null, 2),
             };
           default:
             return { content: responseText };
         }
       }
 
+      // If no JSON found, return the full response as content
       return { content: responseText };
-    } catch {
+    } catch (error) {
+      console.error('Failed to parse response:', error);
+      // Return the full response as content if parsing fails
       return { content: responseText };
     }
   }

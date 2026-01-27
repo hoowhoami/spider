@@ -1,19 +1,11 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  CheckCircle,
-  XCircle,
-  Clock,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { zh } from '@/lib/i18n';
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface ExecutionLog {
-  type: 'node_start' | 'node_complete' | 'node_error' | 'complete';
+  type: 'node_start' | 'node_complete' | 'node_error' | 'complete' | 'log';
   nodeId?: string;
   nodeName?: string;
   result?: any;
@@ -21,6 +13,8 @@ interface ExecutionLog {
   timestamp: string;
   results?: any[];
   nodesExecuted?: number;
+  message?: string;
+  level?: 'info' | 'success' | 'error' | 'warning';
 }
 
 interface ExecutionLogsPanelProps {
@@ -28,67 +22,15 @@ interface ExecutionLogsPanelProps {
   onClose: () => void;
 }
 
-interface NodeExecution {
-  nodeId: string;
-  nodeName: string;
-  status: 'success' | 'error';
-  startTime: string;
-  endTime: string;
-  duration: number;
-  result?: any;
-  error?: string;
-}
-
 export function ExecutionLogsPanel({ logs, onClose }: ExecutionLogsPanelProps) {
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 合并开始和完成日志，计算执行时间
-  const nodeExecutions: NodeExecution[] = [];
-  const nodeStarts = new Map<string, ExecutionLog>();
-
-  logs.forEach((log) => {
-    if (log.type === 'node_start' && log.nodeId) {
-      nodeStarts.set(log.nodeId, log);
-    } else if (
-      (log.type === 'node_complete' || log.type === 'node_error') &&
-      log.nodeId
-    ) {
-      const startLog = nodeStarts.get(log.nodeId);
-      if (startLog) {
-        const startTime = new Date(startLog.timestamp);
-        const endTime = new Date(log.timestamp);
-        const duration = endTime.getTime() - startTime.getTime();
-
-        nodeExecutions.push({
-          nodeId: log.nodeId,
-          nodeName: log.nodeName || '',
-          status: log.type === 'node_complete' ? 'success' : 'error',
-          startTime: startLog.timestamp,
-          endTime: log.timestamp,
-          duration,
-          result: log.result,
-          error: log.error,
-        });
-      }
+  // 自动滚动到底部
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  });
-
-  const completionLog = logs.find((log) => log.type === 'complete');
-
-  const toggleExpand = (nodeId: string) => {
-    const newExpanded = new Set(expandedNodes);
-    if (newExpanded.has(nodeId)) {
-      newExpanded.delete(nodeId);
-    } else {
-      newExpanded.add(nodeId);
-    }
-    setExpandedNodes(newExpanded);
-  };
-
-  const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(2)}s`;
-  };
+  }, [logs]);
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -100,130 +42,105 @@ export function ExecutionLogsPanel({ logs, onClose }: ExecutionLogsPanelProps) {
     });
   };
 
-  const formatResultPreview = (result: any): string => {
-    if (!result) return '无数据';
+  const getLogColor = (level?: string) => {
+    switch (level) {
+      case 'success':
+        return 'text-green-400';
+      case 'error':
+        return 'text-red-400';
+      case 'warning':
+        return 'text-yellow-400';
+      case 'info':
+      default:
+        return 'text-gray-300';
+    }
+  };
 
-    if (result.urls && Array.isArray(result.urls)) {
-      return `${result.urls.length} 个URL`;
+  const getLogPrefix = (level?: string) => {
+    switch (level) {
+      case 'success':
+        return '✓';
+      case 'error':
+        return '✗';
+      case 'warning':
+        return '⚠';
+      case 'info':
+      default:
+        return '→';
     }
-    if (result.results && Array.isArray(result.results)) {
-      return `${result.results.length} 条结果`;
-    }
-    if (result.data) {
-      if (Array.isArray(result.data)) {
-        return `${result.data.length} 条数据`;
-      }
-      return '1 条数据';
+  };
+
+  const renderLog = (log: ExecutionLog, index: number) => {
+    const time = formatTime(log.timestamp);
+
+    // 处理不同类型的日志
+    if (log.type === 'log' && log.message) {
+      // 实时日志消息
+      return (
+        <div key={index} className="flex gap-2 font-mono text-sm">
+          <span className="text-gray-500">[{time}]</span>
+          <span className={getLogColor(log.level)}>
+            {getLogPrefix(log.level)} {log.message}
+          </span>
+        </div>
+      );
+    } else if (log.type === 'node_start') {
+      // 节点开始
+      return (
+        <div key={index} className="flex gap-2 font-mono text-sm">
+          <span className="text-gray-500">[{time}]</span>
+          <span className="text-blue-400">▶ 开始执行节点: {log.nodeName}</span>
+        </div>
+      );
+    } else if (log.type === 'node_complete') {
+      // 节点完成
+      return (
+        <div key={index} className="flex gap-2 font-mono text-sm">
+          <span className="text-gray-500">[{time}]</span>
+          <span className="text-green-400">✓ 节点执行完成: {log.nodeName}</span>
+        </div>
+      );
+    } else if (log.type === 'node_error') {
+      // 节点错误
+      return (
+        <div key={index} className="flex flex-col gap-1 font-mono text-sm">
+          <div className="flex gap-2">
+            <span className="text-gray-500">[{time}]</span>
+            <span className="text-red-400">✗ 节点执行失败: {log.nodeName}</span>
+          </div>
+          {log.error && (
+            <div className="ml-20 text-red-300">错误: {log.error}</div>
+          )}
+        </div>
+      );
+    } else if (log.type === 'complete') {
+      // 工作流完成
+      return (
+        <div key={index} className="flex gap-2 font-mono text-sm">
+          <span className="text-gray-500">[{time}]</span>
+          <span className="font-bold text-green-400">
+            ✓ 工作流执行完成 ({log.nodesExecuted} 个节点)
+          </span>
+        </div>
+      );
     }
 
-    return JSON.stringify(result).substring(0, 50) + '...';
+    return null;
   };
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg">{zh.logsPanel.title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-hidden p-0">
-        <ScrollArea className="h-full px-6 pb-6">
-          <div className="space-y-3">
-            {nodeExecutions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {zh.logsPanel.noLogs}
-              </p>
-            ) : (
-              <>
-                {nodeExecutions.map((execution) => (
-                  <div
-                    key={execution.nodeId}
-                    className={`rounded-lg border transition-all ${
-                      execution.status === 'success'
-                        ? 'border-green-200 bg-green-50/50'
-                        : 'border-red-200 bg-red-50/50'
-                    }`}
-                  >
-                    <div
-                      className="flex cursor-pointer items-start justify-between gap-2 p-3"
-                      onClick={() => toggleExpand(execution.nodeId)}
-                    >
-                      <div className="flex flex-1 items-start gap-2">
-                        {execution.status === 'success' ? (
-                          <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
-                        ) : (
-                          <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {execution.nodeName}
-                            </span>
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              {formatDuration(execution.duration)}
-                            </span>
-                          </div>
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {execution.status === 'success' ? (
-                              <span>
-                                ✓ {formatResultPreview(execution.result)}
-                              </span>
-                            ) : (
-                              <span className="text-red-600">
-                                ✗ {execution.error}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="whitespace-nowrap text-xs text-muted-foreground">
-                          {formatTime(execution.endTime)}
-                        </span>
-                        {expandedNodes.has(execution.nodeId) ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                    </div>
-
-                    {expandedNodes.has(execution.nodeId) &&
-                      execution.result && (
-                        <div className="border-t bg-white/50 p-3">
-                          <div className="text-xs">
-                            <div className="mb-2 font-medium text-muted-foreground">
-                              执行详情
-                            </div>
-                            <pre className="overflow-x-auto rounded bg-gray-100 p-2 text-xs">
-                              {JSON.stringify(execution.result, null, 2)}
-                            </pre>
-                          </div>
-                        </div>
-                      )}
-                  </div>
-                ))}
-
-                {completionLog && (
-                  <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="h-4 w-4 text-blue-600" />
-                      <span className="font-medium">
-                        {zh.logsPanel.workflowComplete}
-                      </span>
-                      <span className="text-muted-foreground">
-                        ({completionLog.nodesExecuted} 个节点)
-                      </span>
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {formatTime(completionLog.timestamp)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+    <div className="flex h-full flex-col bg-gray-900">
+      <ScrollArea className="h-full" ref={scrollRef}>
+        <div className="space-y-1 bg-gray-900 p-4">
+          {logs.length === 0 ? (
+            <p className="font-mono text-sm text-gray-500">
+              {zh.logsPanel.noLogs}
+            </p>
+          ) : (
+            logs.map((log, index) => renderLog(log, index))
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }

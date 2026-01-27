@@ -115,6 +115,14 @@ export const zh = {
     display: '显示',
     download: '下载',
     api: 'API 响应',
+    // Browser options
+    useBrowser: '使用浏览器渲染',
+    useBrowserDesc:
+      '启用后将使用无头浏览器加载动态页面（适用于 React/Vue 等 SPA）',
+    waitForSelector: '等待元素（可选）',
+    waitForSelectorDesc: 'CSS 选择器，例如: .content, #main',
+    timeout: '超时时间（毫秒）',
+    timeoutDesc: '页面加载超时时间，默认 30000ms',
   },
 
   // 消息

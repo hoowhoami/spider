@@ -4,10 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NodeConfigPanel } from './node-config-panel';
 import { ResultsPanel } from './results-panel';
 import { HistoryPanel } from './history-panel';
-import { ExecutionLogsPanel } from './execution-logs-panel';
 import { WorkflowNode } from '@/lib/workflow-types';
 import { zh } from '@/lib/i18n';
-import { Settings, PlayCircle, History, FileText } from 'lucide-react';
+import { Settings, PlayCircle, History } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface WorkflowRightPanelProps {
@@ -15,7 +14,6 @@ interface WorkflowRightPanelProps {
   onUpdateNode: (nodeId: string, data: Partial<WorkflowNode['data']>) => void;
   onCloseNode: () => void;
   executionResult: any;
-  executionLogs: any[];
   onViewHistoryResults: (results: any) => void;
   isExecuting: boolean;
 }
@@ -25,7 +23,6 @@ export function WorkflowRightPanel({
   onUpdateNode,
   onCloseNode,
   executionResult,
-  executionLogs,
   onViewHistoryResults,
   isExecuting,
 }: WorkflowRightPanelProps) {
@@ -38,13 +35,6 @@ export function WorkflowRightPanel({
     }
   }, [selectedNode]);
 
-  // 当开始执行时，切换到日志tab
-  useEffect(() => {
-    if (isExecuting) {
-      setActiveTab('logs');
-    }
-  }, [isExecuting]);
-
   return (
     <div className="flex h-full w-80 flex-col border-l bg-background">
       <Tabs
@@ -52,7 +42,7 @@ export function WorkflowRightPanel({
         onValueChange={setActiveTab}
         className="flex flex-1 flex-col"
       >
-        <TabsList className="grid w-full grid-cols-4 rounded-none border-b">
+        <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
           <TabsTrigger value="config" className="gap-1">
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">{zh.panels.config}</span>
@@ -61,17 +51,13 @@ export function WorkflowRightPanel({
             <PlayCircle className="h-4 w-4" />
             <span className="hidden sm:inline">{zh.panels.results}</span>
           </TabsTrigger>
-          <TabsTrigger value="logs" className="gap-1">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">{zh.panels.logs}</span>
-          </TabsTrigger>
           <TabsTrigger value="history" className="gap-1">
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">{zh.panels.history}</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="config" className="m-0 flex-1 overflow-hidden">
+        <TabsContent value="config" className="m-0 flex-1 overflow-y-auto">
           <NodeConfigPanel
             node={selectedNode}
             onUpdate={onUpdateNode}
@@ -79,15 +65,11 @@ export function WorkflowRightPanel({
           />
         </TabsContent>
 
-        <TabsContent value="results" className="m-0 flex-1 overflow-hidden">
+        <TabsContent value="results" className="m-0 flex-1 overflow-y-auto">
           <ResultsPanel result={executionResult} onClose={() => {}} />
         </TabsContent>
 
-        <TabsContent value="logs" className="m-0 flex-1 overflow-hidden">
-          <ExecutionLogsPanel logs={executionLogs} onClose={() => {}} />
-        </TabsContent>
-
-        <TabsContent value="history" className="m-0 flex-1 overflow-hidden">
+        <TabsContent value="history" className="m-0 flex-1 overflow-y-auto">
           <HistoryPanel
             onClose={() => {}}
             onViewResults={onViewHistoryResults}

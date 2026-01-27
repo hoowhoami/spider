@@ -8,7 +8,7 @@ export default function WorkflowEditorPage() {
   const workflowId = params.id as string;
 
   return (
-    <div className="h-[calc(100vh-64px)]">
+    <div className="h-full">
       <WorkflowEditor
         workflowId={workflowId === 'new' ? undefined : workflowId}
       />

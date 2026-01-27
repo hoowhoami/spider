@@ -18,10 +18,22 @@ import '@xyflow/react/dist/style.css';
 
 import { CustomNode } from './custom-node';
 import { NodePanel } from './node-panel';
-import { WorkflowRightPanel } from './workflow-right-panel';
+import { NodeConfigPanel } from './node-config-panel';
+import { ResultsPanel } from './results-panel';
+import { ExecutionLogsPanel } from './execution-logs-panel';
+import { WorkflowStatusBar } from './workflow-status-bar';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { Play, Save, Download, Upload, Trash2 } from 'lucide-react';
+import {
+  Play,
+  Save,
+  Download,
+  Upload,
+  Trash2,
+  Terminal,
+  PlayCircle,
+} from 'lucide-react';
 import { NodeType, WorkflowNode, Workflow } from '@/lib/workflow-types';
 import { zh } from '@/lib/i18n';
 
@@ -58,6 +70,7 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
   const [currentWorkflowId, setCurrentWorkflowId] = useState<
     string | undefined
   >(workflowId);
+  const [showLogs, setShowLogs] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const { toast } = useToast();
@@ -75,7 +88,8 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
           setNodes(workflow.nodes || []);
           setEdges(workflow.edges || []);
           setWorkflowName(workflow.name || zh.common.untitledWorkflow);
-          setCurrentWorkflowId(workflowId);
+          // 使用从数据库返回的完整 ID
+          setCurrentWorkflowId(workflow.id);
 
           // 重置nodeId计数器，避免ID冲突
           // 找到最大的节点ID数字
@@ -376,6 +390,7 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
     setExecutionLogs([]);
     setExecutionResult(null);
     setExecutingNodeId(null);
+    setShowLogs(true); // 自动显示日志面板
 
     toast({
       title: zh.messages.executingWorkflow,
@@ -463,11 +478,12 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
                 );
               }
 
+              // 添加所有日志到日志列表（包括 'log' 类型）
               setExecutionLogs((prev) => [
                 ...prev,
                 {
                   ...data,
-                  timestamp: new Date().toISOString(),
+                  timestamp: data.timestamp || new Date().toISOString(),
                 },
               ]);
 
@@ -518,106 +534,174 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
   }, [nodes, edges, workflowName, toast, setNodes]);
 
   return (
-    <div className="flex h-full w-full">
-      {/* Left Panel - Node Library */}
-      <div className="w-64 overflow-y-auto border-r bg-background">
-        <NodePanel />
-      </div>
+    <div className="flex h-full w-full flex-col pb-8">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Panel - Node Library */}
+        <div className="w-64 flex-shrink-0 overflow-y-auto border-r bg-background">
+          <NodePanel />
+        </div>
 
-      {/* Center - Workflow Canvas */}
-      <div className="flex flex-1 flex-col">
-        <div className="flex-shrink-0 border-b bg-background p-4">
-          <div className="flex items-center justify-between">
-            <input
-              type="text"
-              value={workflowName}
-              onChange={(e) => setWorkflowName(e.target.value)}
-              className="rounded border-none bg-transparent px-2 text-xl font-bold outline-none focus:ring-2 focus:ring-primary"
-              placeholder="工作流名称"
-            />
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={importWorkflow}
-                disabled={isExecuting}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {zh.toolbar.import}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportWorkflow}
-                disabled={isExecuting}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {zh.toolbar.export}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={saveWorkflow}
-                disabled={isExecuting}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {zh.toolbar.save}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearWorkflow}
-                disabled={isExecuting}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {zh.toolbar.clear}
-              </Button>
-              <Button
-                size="sm"
-                onClick={executeWorkflow}
-                disabled={isExecuting}
-              >
-                <Play className="mr-2 h-4 w-4" />
-                {isExecuting ? zh.toolbar.executing : zh.toolbar.execute}
-              </Button>
+        {/* Center - Workflow Canvas */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-shrink-0 border-b bg-background px-4 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <input
+                type="text"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                className="min-w-0 flex-1 rounded border-none bg-transparent px-2 text-xl font-bold outline-none focus:ring-2 focus:ring-primary"
+                placeholder="工作流名称"
+              />
+              <div className="flex flex-shrink-0 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={importWorkflow}
+                  disabled={isExecuting}
+                  title={zh.toolbar.import}
+                >
+                  <Upload className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">{zh.toolbar.import}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportWorkflow}
+                  disabled={isExecuting}
+                  title={zh.toolbar.export}
+                >
+                  <Download className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">{zh.toolbar.export}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={saveWorkflow}
+                  disabled={isExecuting}
+                  title={zh.toolbar.save}
+                >
+                  <Save className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">{zh.toolbar.save}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearWorkflow}
+                  disabled={isExecuting}
+                  title={zh.toolbar.clear}
+                >
+                  <Trash2 className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">{zh.toolbar.clear}</span>
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={executeWorkflow}
+                  disabled={isExecuting}
+                  className="gap-2"
+                >
+                  <Play className="h-4 w-4" />
+                  {isExecuting ? zh.toolbar.executing : zh.toolbar.execute}
+                </Button>
+              </div>
             </div>
+          </div>
+
+          <div ref={reactFlowWrapper} className="flex-1 overflow-hidden">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodesDelete={onNodesDelete}
+              onInit={setReactFlowInstance}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onNodeClick={onNodeClick}
+              onPaneClick={onPaneClick}
+              nodeTypes={nodeTypes}
+              fitView
+            >
+              <Background />
+              <Controls />
+              <MiniMap />
+            </ReactFlow>
           </div>
         </div>
 
-        <div ref={reactFlowWrapper} className="flex-1">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodesDelete={onNodesDelete}
-            onInit={setReactFlowInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onNodeClick={onNodeClick}
-            onPaneClick={onPaneClick}
-            nodeTypes={nodeTypes}
-            fitView
-          >
-            <Background />
-            <Controls />
-            <MiniMap />
-          </ReactFlow>
+        {/* Right Panel - Node Config Only */}
+        <div className="flex h-full w-80 flex-col border-l bg-background">
+          <div className="flex-shrink-0 border-b bg-background px-6 py-4">
+            <h3 className="text-lg font-semibold">{zh.panels.nodeConfig}</h3>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <NodeConfigPanel
+              node={selectedNode}
+              onUpdate={updateNodeData}
+              onClose={() => setSelectedNode(null)}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Right Panel - Tabs */}
-      <WorkflowRightPanel
-        selectedNode={selectedNode}
-        onUpdateNode={updateNodeData}
-        onCloseNode={() => setSelectedNode(null)}
-        executionResult={executionResult}
-        executionLogs={executionLogs}
-        onViewHistoryResults={(results) => {
-          setExecutionResult(results);
+      {/* Bottom Drawer - Logs and Results */}
+      {(showLogs || executionResult) && (
+        <div
+          className="fixed bottom-8 left-64 right-0 z-50 border-t bg-background shadow-lg transition-transform duration-300"
+          style={{ height: '400px' }}
+        >
+          <Tabs defaultValue="logs" className="flex h-full flex-col">
+            <div className="flex items-center justify-between border-b bg-background px-4 py-2">
+              <TabsList>
+                <TabsTrigger value="logs" className="gap-2">
+                  <Terminal className="h-4 w-4" />
+                  {zh.panels.executionLogs}
+                </TabsTrigger>
+                <TabsTrigger value="results" className="gap-2">
+                  <PlayCircle className="h-4 w-4" />
+                  {zh.panels.executionResults}
+                </TabsTrigger>
+              </TabsList>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowLogs(false);
+                  setExecutionResult(null);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {zh.buttons.close}
+              </Button>
+            </div>
+
+            <TabsContent value="logs" className="m-0 flex-1 overflow-hidden">
+              <ExecutionLogsPanel
+                logs={executionLogs}
+                onClose={() => setShowLogs(false)}
+              />
+            </TabsContent>
+
+            <TabsContent value="results" className="m-0 flex-1 overflow-hidden">
+              <ResultsPanel
+                result={executionResult}
+                onClose={() => setExecutionResult(null)}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
+
+      {/* Status Bar */}
+      <WorkflowStatusBar
+        onOpenLogs={() => setShowLogs(true)}
+        onOpenResults={() => {
+          if (executionResult) {
+            setShowLogs(true);
+          }
         }}
-        isExecuting={isExecuting}
+        hasLogs={executionLogs.length > 0}
+        hasResults={executionResult !== null}
       />
     </div>
   );

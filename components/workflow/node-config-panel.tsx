@@ -1,9 +1,9 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -27,16 +27,11 @@ export function NodeConfigPanel({
 }: NodeConfigPanelProps) {
   if (!node) {
     return (
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle className="text-lg">{zh.panels.nodeConfig}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            {zh.messages.selectNodeToConfig}
-          </p>
-        </CardContent>
-      </Card>
+      <div className="flex flex-1 items-center justify-center px-6 py-4">
+        <p className="text-center text-sm text-muted-foreground">
+          {zh.messages.selectNodeToConfig}
+        </p>
+      </div>
     );
   }
 
@@ -155,6 +150,69 @@ export function NodeConfigPanel({
                 />
               </div>
             )}
+
+            {/* Browser options */}
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="useBrowser"
+                  checked={(node.data as any).useBrowser || false}
+                  onCheckedChange={(checked) =>
+                    updateData({ useBrowser: checked as boolean })
+                  }
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label
+                    htmlFor="useBrowser"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {zh.config.useBrowser}
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    {zh.config.useBrowserDesc}
+                  </p>
+                </div>
+              </div>
+
+              {(node.data as any).useBrowser && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="waitForSelector">
+                      {zh.config.waitForSelector}
+                    </Label>
+                    <Input
+                      id="waitForSelector"
+                      placeholder=".content, #main"
+                      value={(node.data as any).waitForSelector || ''}
+                      onChange={(e) =>
+                        updateData({ waitForSelector: e.target.value })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {zh.config.waitForSelectorDesc}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="timeout">{zh.config.timeout}</Label>
+                    <Input
+                      id="timeout"
+                      type="number"
+                      placeholder="30000"
+                      value={(node.data as any).timeout || ''}
+                      onChange={(e) =>
+                        updateData({
+                          timeout: parseInt(e.target.value) || 30000,
+                        })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {zh.config.timeoutDesc}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
           </>
         );
 
@@ -212,6 +270,69 @@ export function NodeConfigPanel({
                 onChange={(e) => updateData({ customPrompt: e.target.value })}
                 rows={3}
               />
+            </div>
+
+            {/* Browser options */}
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="useBrowser"
+                  checked={(node.data as any).useBrowser || false}
+                  onCheckedChange={(checked) =>
+                    updateData({ useBrowser: checked as boolean })
+                  }
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label
+                    htmlFor="useBrowser"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {zh.config.useBrowser}
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    {zh.config.useBrowserDesc}
+                  </p>
+                </div>
+              </div>
+
+              {(node.data as any).useBrowser && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="waitForSelector">
+                      {zh.config.waitForSelector}
+                    </Label>
+                    <Input
+                      id="waitForSelector"
+                      placeholder=".content, #main"
+                      value={(node.data as any).waitForSelector || ''}
+                      onChange={(e) =>
+                        updateData({ waitForSelector: e.target.value })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {zh.config.waitForSelectorDesc}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="timeout">{zh.config.timeout}</Label>
+                    <Input
+                      id="timeout"
+                      type="number"
+                      placeholder="30000"
+                      value={(node.data as any).timeout || ''}
+                      onChange={(e) =>
+                        updateData({
+                          timeout: parseInt(e.target.value) || 30000,
+                        })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {zh.config.timeoutDesc}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </>
         );
@@ -471,32 +592,27 @@ export function NodeConfigPanel({
   };
 
   return (
-    <Card className="h-full overflow-auto">
-      <CardHeader>
-        <CardTitle className="text-lg">{zh.panels.nodeConfig}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="label">{zh.config.label}</Label>
-          <Input
-            id="label"
-            value={node.data.label}
-            onChange={(e) => updateData({ label: e.target.value })}
-          />
-        </div>
+    <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+      <div className="space-y-2">
+        <Label htmlFor="label">{zh.config.label}</Label>
+        <Input
+          id="label"
+          value={node.data.label}
+          onChange={(e) => updateData({ label: e.target.value })}
+        />
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="description">{zh.config.description}</Label>
-          <Textarea
-            id="description"
-            value={node.data.description || ''}
-            onChange={(e) => updateData({ description: e.target.value })}
-            rows={2}
-          />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="description">{zh.config.description}</Label>
+        <Textarea
+          id="description"
+          value={node.data.description || ''}
+          onChange={(e) => updateData({ description: e.target.value })}
+          rows={2}
+        />
+      </div>
 
-        {renderConfigFields()}
-      </CardContent>
-    </Card>
+      {renderConfigFields()}
+    </div>
   );
 }

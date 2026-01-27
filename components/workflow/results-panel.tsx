@@ -21,18 +21,11 @@ interface ResultsPanelProps {
 export function ResultsPanel({ result, onClose }: ResultsPanelProps) {
   if (!result) {
     return (
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle className="text-lg">
-            {zh.panels.executionResults}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            {zh.messages.executeToSeeResults}
-          </p>
-        </CardContent>
-      </Card>
+      <div className="flex flex-1 items-center justify-center px-6 py-4">
+        <p className="text-center text-sm text-muted-foreground">
+          {zh.messages.executeToSeeResults}
+        </p>
+      </div>
     );
   }
 
@@ -49,14 +42,14 @@ export function ResultsPanel({ result, onClose }: ResultsPanelProps) {
   };
 
   return (
-    <Card className="h-full overflow-auto">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-lg">{zh.panels.executionResults}</CardTitle>
-        <Button variant="outline" size="icon" onClick={downloadResults}>
-          <Download className="h-4 w-4" />
+    <div className="flex h-full flex-col">
+      <div className="flex flex-shrink-0 items-center justify-end border-b bg-background px-6 py-2">
+        <Button variant="outline" size="sm" onClick={downloadResults}>
+          <Download className="mr-2 h-4 w-4" />
+          下载结果
         </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      </div>
+      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
         {result.error ? (
           <div className="rounded-lg border border-red-500 bg-red-50 p-4">
             <h3 className="font-semibold text-red-900">{zh.status.error}</h3>
@@ -159,7 +152,7 @@ export function ResultsPanel({ result, onClose }: ResultsPanelProps) {
             </Tabs>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

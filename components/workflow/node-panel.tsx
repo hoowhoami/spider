@@ -114,7 +114,7 @@ export function NodePanel() {
   };
 
   return (
-    <Card className="h-full overflow-auto">
+    <Card className="h-full overflow-auto rounded-none border-0">
       <CardHeader>
         <CardTitle className="text-lg">{zh.panels.nodes}</CardTitle>
       </CardHeader>
