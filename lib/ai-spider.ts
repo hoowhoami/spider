@@ -5,6 +5,7 @@ export interface CrawlerConfig {
   maxDepth?: number;
   extractionType: 'content' | 'structured' | 'links' | 'analysis';
   structuredFields?: string[];
+  customPrompt?: string;
 }
 
 export interface CrawlResult {
@@ -91,10 +92,14 @@ export class AISpider {
     });
 
     let responseText = '';
+    let hasResult = false;
 
     // Iterate through the messages from the agent
     for await (const message of agentQuery) {
+      console.log('Agent message:', message.type, message.subtype);
+
       if (message.type === 'result') {
+        hasResult = true;
         if (message.subtype === 'success') {
           responseText = message.result;
           console.log('Claude Agent SDK response received');
@@ -103,7 +108,18 @@ export class AISpider {
           // Handle error result types
           throw new Error(`Agent query failed: ${message.subtype}`);
         }
+      } else if (message.type === 'text') {
+        // 收集文本消息
+        responseText += message.text || '';
       }
+    }
+
+    if (!hasResult && responseText) {
+      console.log('No result message, using collected text');
+    }
+
+    if (!responseText) {
+      throw new Error('No response from Claude Agent SDK');
     }
 
     return this.parseResponse(responseText, config.extractionType);
@@ -112,9 +128,23 @@ export class AISpider {
   private buildPrompt(htmlContent: string, config: CrawlerConfig): string {
     const truncatedHtml = htmlContent.slice(0, 50000); // Limit HTML size
 
+    // 如果有自定义提示词，优先使用
+    if (config.customPrompt) {
+      return `${config.customPrompt}
+
+IMPORTANT: Extract information ONLY from the HTML content provided below. Do NOT use any tools or try to fetch additional resources. Work with what is given.
+
+HTML:
+${truncatedHtml}
+
+Please provide the result in JSON format if applicable.`;
+    }
+
     switch (config.extractionType) {
       case 'content':
         return `Extract the main content from this webpage. Focus on the title, main text, and key information. Ignore navigation, ads, and boilerplate.
+
+IMPORTANT: Extract information ONLY from the HTML content provided below. Do NOT use any tools.
 
 HTML:
 ${truncatedHtml}
@@ -128,6 +158,8 @@ Please provide the result in JSON format:
       case 'structured':
         return `Extract structured data from this webpage. Extract the following fields: ${config.structuredFields?.join(', ')}.
 
+IMPORTANT: Extract information ONLY from the HTML content provided below. Do NOT use any tools.
+
 HTML:
 ${truncatedHtml}
 
@@ -135,6 +167,8 @@ Please provide the result in JSON format with the requested fields.`;
 
       case 'links':
         return `Analyze this webpage and extract all important links. Categorize them and identify which ones are most relevant for further crawling.
+
+IMPORTANT: Extract information ONLY from the HTML content provided below. Do NOT use any tools.
 
 HTML:
 ${truncatedHtml}

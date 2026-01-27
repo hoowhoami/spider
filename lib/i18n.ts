@@ -2,6 +2,8 @@
 export const zh = {
   // 节点类型
   nodeTypes: {
+    start: '开始',
+    end: '结束',
     input: 'URL 输入',
     'ai-extract': 'AI 提取',
     'ai-analyze': 'AI 分析',
@@ -15,6 +17,8 @@ export const zh = {
 
   // 节点描述
   nodeDescriptions: {
+    start: 'Workflow 开始节点',
+    end: 'Workflow 结束节点',
     input: '输入单个或多个 URL',
     'ai-extract': '使用 AI 提取内容',
     'ai-analyze': '使用 AI 分析内容',
@@ -58,12 +62,23 @@ export const zh = {
   config: {
     label: '标签',
     description: '描述',
+    // Start node
+    triggerType: '触发类型',
+    manual: '手动触发',
+    schedule: '定时触发',
+    webhook: 'Webhook触发',
+    // End node
+    action: '结束动作',
+    none: '无',
+    notify: '发送通知',
+    // Input node
     inputType: '输入类型',
     singleUrl: '单个 URL',
     multipleUrls: '多个 URL',
     searchQuery: '搜索查询',
     url: 'URL',
     urls: 'URL 列表（每行一个）',
+    // AI Extract node
     extractionType: '提取类型',
     content: '内容',
     structured: '结构化数据',
@@ -71,11 +86,13 @@ export const zh = {
     analysis: '分析',
     structuredFields: '字段（逗号分隔）',
     customPrompt: '自定义提示词（可选）',
+    // AI Analyze node
     analysisType: '分析类型',
     summary: '摘要',
     sentiment: '情感',
     classification: '分类',
     custom: '自定义',
+    // AI Filter node
     filterType: '过滤类型',
     keyword: '关键词',
     aiCondition: 'AI 条件',
@@ -83,13 +100,17 @@ export const zh = {
     keywords: '关键词（逗号分隔）',
     condition: 'AI 条件',
     regexPattern: '正则表达式模式',
+    // Batch Crawl node
     maxDepth: '最大深度',
     maxPages: '最大页面数',
+    // Search Engine node
     searchEngine: '搜索引擎',
     query: '搜索查询',
     maxResults: '最大结果数',
+    // Export node
     exportFormat: '导出格式',
     filename: '文件名',
+    // Output node
     outputType: '输出类型',
     display: '显示',
     download: '下载',

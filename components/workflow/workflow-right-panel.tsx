@@ -8,6 +8,7 @@ import { ExecutionLogsPanel } from './execution-logs-panel';
 import { WorkflowNode } from '@/lib/workflow-types';
 import { zh } from '@/lib/i18n';
 import { Settings, PlayCircle, History, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface WorkflowRightPanelProps {
   selectedNode: WorkflowNode | null;
@@ -28,11 +29,29 @@ export function WorkflowRightPanel({
   onViewHistoryResults,
   isExecuting,
 }: WorkflowRightPanelProps) {
-  const defaultTab = isExecuting ? 'logs' : selectedNode ? 'config' : 'results';
+  const [activeTab, setActiveTab] = useState('results');
+
+  // 当点击节点时，切换到配置tab
+  useEffect(() => {
+    if (selectedNode) {
+      setActiveTab('config');
+    }
+  }, [selectedNode]);
+
+  // 当开始执行时，切换到日志tab
+  useEffect(() => {
+    if (isExecuting) {
+      setActiveTab('logs');
+    }
+  }, [isExecuting]);
 
   return (
     <div className="flex h-full w-80 flex-col border-l bg-background">
-      <Tabs defaultValue={defaultTab} className="flex flex-1 flex-col">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex flex-1 flex-col"
+      >
         <TabsList className="grid w-full grid-cols-4 rounded-none border-b">
           <TabsTrigger value="config" className="gap-1">
             <Settings className="h-4 w-4" />

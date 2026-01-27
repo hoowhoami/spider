@@ -44,24 +44,29 @@ export function WorkflowListPage() {
     loadWorkflows();
   }, []);
 
-  const loadWorkflows = () => {
+  const loadWorkflows = async () => {
     try {
-      const keys = Object.keys(localStorage).filter((key) =>
-        key.startsWith('workflow_')
+      // 从数据库加载
+      const response = await fetch('/api/workflow');
+      if (!response.ok) {
+        throw new Error('Failed to load from database');
+      }
+
+      const dbWorkflows = await response.json();
+
+      // 转换格式
+      const loadedWorkflows: WorkflowMetadata[] = dbWorkflows.map(
+        (wf: any) => ({
+          id: wf.id.replace('workflow_', ''),
+          name: wf.name || zh.workflow.untitled,
+          description: wf.description,
+          nodeCount: wf.nodes?.length || 0,
+          edgeCount: wf.edges?.length || 0,
+          lastUpdated: wf.updatedAt || wf.createdAt || new Date().toISOString(),
+          nodes: wf.nodes || [],
+          edges: wf.edges || [],
+        })
       );
-      const loadedWorkflows: WorkflowMetadata[] = keys.map((key) => {
-        const data = JSON.parse(localStorage.getItem(key) || '{}');
-        return {
-          id: key.replace('workflow_', ''),
-          name: data.name || zh.workflow.untitled,
-          description: data.description,
-          nodeCount: data.nodes?.length || 0,
-          edgeCount: data.edges?.length || 0,
-          lastUpdated: data.lastUpdated || new Date().toISOString(),
-          nodes: data.nodes || [],
-          edges: data.edges || [],
-        };
-      });
 
       // Sort by last updated (newest first)
       loadedWorkflows.sort(
@@ -71,7 +76,7 @@ export function WorkflowListPage() {
 
       setWorkflows(loadedWorkflows);
     } catch (error) {
-      console.error('Failed to load workflows:', error);
+      console.error('Failed to load workflows from database:', error);
       toast({
         title: zh.workflow.loadError,
         variant: 'destructive',
@@ -89,10 +94,18 @@ export function WorkflowListPage() {
     router.push(`/workflow/${id}`);
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (confirm(zh.workflow.confirmDelete.replace('{name}', name))) {
       try {
-        localStorage.removeItem(`workflow_${id}`);
+        // 从数据库删除
+        const response = await fetch(`/api/workflow?id=workflow_${id}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete from database');
+        }
+
         toast({
           title: zh.workflow.deleted,
         });
@@ -107,17 +120,32 @@ export function WorkflowListPage() {
     }
   };
 
-  const handleDuplicate = (workflow: WorkflowMetadata) => {
+  const handleDuplicate = async (workflow: WorkflowMetadata) => {
     try {
-      const newId = Date.now().toString();
+      const newId = `workflow_${Date.now()}`;
       const newWorkflow = {
+        id: newId,
         name: `${workflow.name} (${zh.workflow.copy})`,
         description: workflow.description,
         nodes: workflow.nodes,
         edges: workflow.edges,
-        lastUpdated: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
-      localStorage.setItem(`workflow_${newId}`, JSON.stringify(newWorkflow));
+
+      // 保存到数据库
+      const response = await fetch('/api/workflow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newWorkflow),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to duplicate workflow');
+      }
+
       toast({
         title: zh.workflow.duplicated,
       });

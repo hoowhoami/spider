@@ -10,6 +10,8 @@ import {
   FileDown,
   Play,
   Database,
+  PlayCircle,
+  StopCircle,
 } from 'lucide-react';
 import { NodeType } from '@/lib/workflow-types';
 import { zh } from '@/lib/i18n';
@@ -23,6 +25,20 @@ interface NodeTemplate {
 }
 
 const nodeTemplates: NodeTemplate[] = [
+  {
+    type: 'start',
+    label: zh.nodeTypes.start,
+    description: zh.nodeDescriptions.start,
+    icon: <PlayCircle className="h-5 w-5" />,
+    color: 'bg-emerald-500',
+  },
+  {
+    type: 'end',
+    label: zh.nodeTypes.end,
+    description: zh.nodeDescriptions.end,
+    icon: <StopCircle className="h-5 w-5" />,
+    color: 'bg-red-500',
+  },
   {
     type: 'input',
     label: zh.nodeTypes.input,

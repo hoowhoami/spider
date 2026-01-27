@@ -3,7 +3,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -13,7 +12,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { WorkflowNode } from '@/lib/workflow-types';
-import { X } from 'lucide-react';
 import { zh } from '@/lib/i18n';
 
 interface NodeConfigPanelProps {
@@ -48,6 +46,48 @@ export function NodeConfigPanel({
 
   const renderConfigFields = () => {
     switch (node.type) {
+      case 'start':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor="triggerType">{zh.config.triggerType}</Label>
+            <Select
+              value={(node.data as any).triggerType || 'manual'}
+              onValueChange={(value) =>
+                updateData({ triggerType: value as any })
+              }
+            >
+              <SelectTrigger id="triggerType">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">{zh.config.manual}</SelectItem>
+                <SelectItem value="schedule">{zh.config.schedule}</SelectItem>
+                <SelectItem value="webhook">{zh.config.webhook}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        );
+
+      case 'end':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor="action">{zh.config.action}</Label>
+            <Select
+              value={(node.data as any).action || 'none'}
+              onValueChange={(value) => updateData({ action: value as any })}
+            >
+              <SelectTrigger id="action">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{zh.config.none}</SelectItem>
+                <SelectItem value="notify">{zh.config.notify}</SelectItem>
+                <SelectItem value="webhook">{zh.config.webhook}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        );
+
       case 'input':
         return (
           <>
@@ -432,11 +472,8 @@ export function NodeConfigPanel({
 
   return (
     <Card className="h-full overflow-auto">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+      <CardHeader>
         <CardTitle className="text-lg">{zh.panels.nodeConfig}</CardTitle>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">

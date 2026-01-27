@@ -26,6 +26,8 @@ import { NodeType, WorkflowNode, Workflow } from '@/lib/workflow-types';
 import { zh } from '@/lib/i18n';
 
 const nodeTypes = {
+  start: CustomNode,
+  end: CustomNode,
   input: CustomNode,
   'ai-extract': CustomNode,
   'ai-analyze': CustomNode,
@@ -63,25 +65,53 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
   // Load workflow on mount if workflowId is provided
   useEffect(() => {
     if (workflowId) {
-      const workflowData = localStorage.getItem(`workflow_${workflowId}`);
-      if (workflowData) {
-        try {
-          const workflow = JSON.parse(workflowData);
+      // 从数据库加载
+      fetch(`/api/workflow/${workflowId}`)
+        .then((res) => {
+          if (!res.ok) throw new Error('Failed to load');
+          return res.json();
+        })
+        .then((workflow) => {
           setNodes(workflow.nodes || []);
           setEdges(workflow.edges || []);
           setWorkflowName(workflow.name || zh.common.untitledWorkflow);
           setCurrentWorkflowId(workflowId);
-        } catch (error) {
-          console.error('Failed to load workflow:', error);
+
+          // 重置nodeId计数器，避免ID冲突
+          // 找到最大的节点ID数字
+          const maxId = (workflow.nodes || []).reduce(
+            (max: number, node: any) => {
+              const match = node.id.match(/^node_(\d+)$/);
+              if (match) {
+                const num = parseInt(match[1], 10);
+                return num > max ? num : max;
+              }
+              return max;
+            },
+            -1
+          );
+          nodeId = maxId + 1;
+        })
+        .catch((error) => {
+          console.error('Failed to load workflow from database:', error);
           toast({
             title: '加载失败',
             description: '无法加载工作流数据',
             variant: 'destructive',
           });
-        }
-      }
+        });
     }
   }, [workflowId, setNodes, setEdges, toast]);
+
+  const onNodesDelete = useCallback(
+    (deleted: Node[]) => {
+      // 当节点被删除时，如果删除的是当前选中的节点，清除选中状态
+      if (selectedNode && deleted.some((node) => node.id === selectedNode.id)) {
+        setSelectedNode(null);
+      }
+    },
+    [selectedNode]
+  );
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -137,6 +167,10 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
 
   const getDefaultNodeData = (type: NodeType): any => {
     switch (type) {
+      case 'start':
+        return { triggerType: 'manual' };
+      case 'end':
+        return { action: 'none' };
       case 'input':
         return { inputType: 'single' };
       case 'ai-extract':
@@ -203,30 +237,51 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
     [setNodes, selectedNode]
   );
 
-  const saveWorkflow = useCallback(() => {
-    const id = currentWorkflowId || Date.now().toString();
+  const saveWorkflow = useCallback(async () => {
+    const id = currentWorkflowId || `workflow_${Date.now()}`;
     const workflow = {
+      id,
       name: workflowName,
       description: '',
       nodes: nodes,
       edges: edges,
-      lastUpdated: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    // Save to localStorage
-    localStorage.setItem(`workflow_${id}`, JSON.stringify(workflow));
+    try {
+      // 保存到数据库
+      const response = await fetch('/api/workflow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(workflow),
+      });
 
-    if (!currentWorkflowId) {
-      setCurrentWorkflowId(id);
+      if (!response.ok) {
+        throw new Error('Failed to save workflow');
+      }
+
+      if (!currentWorkflowId) {
+        setCurrentWorkflowId(id);
+      }
+
+      toast({
+        title: zh.messages.workflowSaved,
+        description: zh.messages.workflowSavedSuccess.replace(
+          '{name}',
+          workflowName
+        ),
+      });
+    } catch (error) {
+      console.error('Failed to save workflow:', error);
+      toast({
+        title: '保存失败',
+        description: '无法保存工作流',
+        variant: 'destructive',
+      });
     }
-
-    toast({
-      title: zh.messages.workflowSaved,
-      description: zh.messages.workflowSavedSuccess.replace(
-        '{name}',
-        workflowName
-      ),
-    });
   }, [nodes, edges, workflowName, currentWorkflowId, toast]);
 
   const exportWorkflow = useCallback(() => {
@@ -341,7 +396,8 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Execution failed');
+        const errorText = await response.text();
+        throw new Error(`Execution failed: ${response.status} ${errorText}`);
       }
 
       const reader = response.body?.getReader();
@@ -366,6 +422,11 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
+
+              // 检查是否是错误消息
+              if (data.error) {
+                throw new Error(data.error);
+              }
 
               // Update executing node visual state
               if (data.type === 'node_start') {
@@ -530,6 +591,7 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodesDelete={onNodesDelete}
             onInit={setReactFlowInstance}
             onDrop={onDrop}
             onDragOver={onDragOver}

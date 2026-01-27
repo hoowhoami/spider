@@ -67,3 +67,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ReactFlow custom styles */
+.react-flow__node {
+  border: none !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}

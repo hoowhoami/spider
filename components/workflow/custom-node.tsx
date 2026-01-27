@@ -12,10 +12,14 @@ import {
   FileDown,
   Play,
   Database,
+  PlayCircle,
+  StopCircle,
 } from 'lucide-react';
 import { NodeType, WorkflowNodeData } from '@/lib/workflow-types';
 
 const nodeIcons: Record<NodeType, React.ReactNode> = {
+  start: <PlayCircle className="h-4 w-4" />,
+  end: <StopCircle className="h-4 w-4" />,
   input: <Globe className="h-4 w-4" />,
   'ai-extract': <Brain className="h-4 w-4" />,
   'ai-analyze': <Brain className="h-4 w-4" />,
@@ -28,6 +32,8 @@ const nodeIcons: Record<NodeType, React.ReactNode> = {
 };
 
 const nodeColors: Record<NodeType, string> = {
+  start: 'bg-emerald-500',
+  end: 'bg-red-500',
   input: 'bg-blue-500',
   'ai-extract': 'bg-purple-500',
   'ai-analyze': 'bg-purple-600',
@@ -63,7 +69,12 @@ export const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
         data.isCompleted ? 'ring-2 ring-green-500' : ''
       } ${data.isError ? 'border-red-500 ring-2 ring-red-500' : ''}`}
     >
-      <Handle type="target" position={Position.Top} className="!bg-gray-400" />
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!bg-gray-400"
+        style={{ left: '50%', transform: 'translateX(-50%)' }}
+      />
       <CardHeader className="p-3">
         <CardTitle className="flex items-center gap-2 text-sm">
           <div
@@ -96,6 +107,7 @@ export const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
         type="source"
         position={Position.Bottom}
         className="!bg-gray-400"
+        style={{ left: '50%', transform: 'translateX(-50%)' }}
       />
     </Card>
   );

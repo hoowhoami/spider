@@ -1,6 +1,8 @@
 // Workflow node types and data structures
 
 export type NodeType =
+  | 'start'
+  | 'end'
   | 'input'
   | 'ai-extract'
   | 'ai-analyze'
@@ -14,6 +16,14 @@ export type NodeType =
 export interface BaseNodeData {
   label: string;
   description?: string;
+}
+
+export interface StartNodeData extends BaseNodeData {
+  triggerType?: 'manual' | 'schedule' | 'webhook';
+}
+
+export interface EndNodeData extends BaseNodeData {
+  action?: 'none' | 'notify' | 'webhook';
 }
 
 export interface InputNodeData extends BaseNodeData {
@@ -72,6 +82,8 @@ export interface OutputNodeData extends BaseNodeData {
 }
 
 export type WorkflowNodeData =
+  | StartNodeData
+  | EndNodeData
   | InputNodeData
   | AIExtractNodeData
   | AIAnalyzeNodeData

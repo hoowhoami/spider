@@ -40,8 +40,7 @@ export function initDatabase() {
       completed_at TEXT,
       nodes_executed INTEGER DEFAULT 0,
       results TEXT,
-      error TEXT,
-      FOREIGN KEY (workflow_id) REFERENCES workflows(id)
+      error TEXT
     )
   `);
 
@@ -54,8 +53,7 @@ export function initDatabase() {
       node_name TEXT NOT NULL,
       log_type TEXT NOT NULL,
       message TEXT,
-      timestamp TEXT NOT NULL,
-      FOREIGN KEY (execution_id) REFERENCES execution_history(id)
+      timestamp TEXT NOT NULL
     )
   `);
 

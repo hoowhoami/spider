@@ -52,12 +52,17 @@ export async function POST(request: NextRequest) {
 
     // 创建执行记录
     const executionId = `exec_${Date.now()}`;
-    executionDb.create({
-      id: executionId,
-      workflowId: 'temp',
-      workflowName: zh.execution.tempExecution,
-      startedAt: new Date().toISOString(),
-    });
+    try {
+      executionDb.create({
+        id: executionId,
+        workflowId: 'temp',
+        workflowName: zh.execution.tempExecution,
+        startedAt: new Date().toISOString(),
+      });
+    } catch (dbError) {
+      console.error('[API] 数据库操作失败:', dbError);
+      // 继续执行，不因为数据库错误而中断
+    }
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -123,13 +128,17 @@ export async function POST(request: NextRequest) {
             });
 
             // 记录日志到数据库
-            logDb.add({
-              executionId,
-              nodeId: currentNode.id,
-              nodeName: currentNode.data.label,
-              logType: 'node_start',
-              timestamp: new Date().toISOString(),
-            });
+            try {
+              logDb.add({
+                executionId,
+                nodeId: currentNode.id,
+                nodeName: currentNode.data.label,
+                logType: 'node_start',
+                timestamp: new Date().toISOString(),
+              });
+            } catch (dbError) {
+              console.error('[API Stream] 日志记录失败:', dbError);
+            }
 
             // Get input data
             const predecessors = edges
@@ -156,14 +165,18 @@ export async function POST(request: NextRequest) {
               });
 
               // 记录日志到数据库
-              logDb.add({
-                executionId,
-                nodeId: currentNode.id,
-                nodeName: currentNode.data.label,
-                logType: 'node_complete',
-                message: JSON.stringify(result),
-                timestamp: new Date().toISOString(),
-              });
+              try {
+                logDb.add({
+                  executionId,
+                  nodeId: currentNode.id,
+                  nodeName: currentNode.data.label,
+                  logType: 'node_complete',
+                  message: JSON.stringify(result),
+                  timestamp: new Date().toISOString(),
+                });
+              } catch (dbError) {
+                console.error('[API Stream] 日志记录失败:', dbError);
+              }
 
               if (currentNode.type === 'output') {
                 results.push(result);
@@ -200,22 +213,30 @@ export async function POST(request: NextRequest) {
               });
 
               // 记录错误到数据库
-              logDb.add({
-                executionId,
-                nodeId: currentNode.id,
-                nodeName: currentNode.data.label,
-                logType: 'node_error',
-                message: errorMsg,
-                timestamp: new Date().toISOString(),
-              });
+              try {
+                logDb.add({
+                  executionId,
+                  nodeId: currentNode.id,
+                  nodeName: currentNode.data.label,
+                  logType: 'node_error',
+                  message: errorMsg,
+                  timestamp: new Date().toISOString(),
+                });
+              } catch (dbError) {
+                console.error('[API Stream] 日志记录失败:', dbError);
+              }
 
               // 更新执行记录为失败
-              executionDb.update(executionId, {
-                status: 'failed',
-                completedAt: new Date().toISOString(),
-                nodesExecuted,
-                error: errorMsg,
-              });
+              try {
+                executionDb.update(executionId, {
+                  status: 'failed',
+                  completedAt: new Date().toISOString(),
+                  nodesExecuted,
+                  error: errorMsg,
+                });
+              } catch (dbError) {
+                console.error('[API Stream] 更新执行记录失败:', dbError);
+              }
 
               sendLog({
                 error: `${zh.errors.nodeExecutionFailed}: ${currentNode.data.label}`,
@@ -226,12 +247,16 @@ export async function POST(request: NextRequest) {
           }
 
           // 更新执行记录为完成
-          executionDb.update(executionId, {
-            status: 'completed',
-            completedAt: new Date().toISOString(),
-            nodesExecuted,
-            results,
-          });
+          try {
+            executionDb.update(executionId, {
+              status: 'completed',
+              completedAt: new Date().toISOString(),
+              nodesExecuted,
+              results,
+            });
+          } catch (dbError) {
+            console.error('[API Stream] 更新执行记录失败:', dbError);
+          }
 
           // 发送完成消息
           sendLog({
@@ -247,11 +272,15 @@ export async function POST(request: NextRequest) {
             error instanceof Error ? error.message : String(error);
 
           // 更新执行记录为失败
-          executionDb.update(executionId, {
-            status: 'failed',
-            completedAt: new Date().toISOString(),
-            error: errorMsg,
-          });
+          try {
+            executionDb.update(executionId, {
+              status: 'failed',
+              completedAt: new Date().toISOString(),
+              error: errorMsg,
+            });
+          } catch (dbError) {
+            console.error('[API Stream] 更新执行记录失败:', dbError);
+          }
 
           sendLog({ error: errorMsg });
           controller.close();
@@ -311,6 +340,7 @@ async function executeNode(
             url,
             extractionType: nodeData.extractionType || 'content',
             structuredFields: nodeData.structuredFields,
+            customPrompt: nodeData.customPrompt,
           });
           results.push(result);
         } catch (error) {
