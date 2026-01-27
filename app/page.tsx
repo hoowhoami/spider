@@ -1,9 +1,5 @@
-import { CrawlerInterface } from '@/components/crawler-interface';
+import { WorkflowListPage } from '@/components/workflow/workflow-list-page';
 
 export default function Home() {
-  return (
-    <main className="min-h-screen">
-      <CrawlerInterface />
-    </main>
-  );
+  return <WorkflowListPage />;
 }
