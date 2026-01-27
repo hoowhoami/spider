@@ -92,30 +92,33 @@ export class AISpider {
     });
 
     let responseText = '';
-    let hasResult = false;
 
     // Iterate through the messages from the agent
     for await (const message of agentQuery) {
-      console.log('Agent message:', message.type, message.subtype);
+      console.log('Agent message:', message.type);
 
       if (message.type === 'result') {
-        hasResult = true;
         if (message.subtype === 'success') {
           responseText = message.result;
           console.log('Claude Agent SDK response received');
           console.log('Response text length:', responseText.length);
         } else {
-          // Handle error result types
           throw new Error(`Agent query failed: ${message.subtype}`);
         }
-      } else if (message.type === 'text') {
-        // 收集文本消息
-        responseText += message.text || '';
+      } else if (message.type === 'assistant') {
+        // Collect assistant messages
+        // @ts-expect-error - SDK assistant message type
+        const content = message.content;
+        if (typeof content === 'string') {
+          responseText += content;
+        } else if (Array.isArray(content)) {
+          for (const block of content) {
+            if (block.type === 'text') {
+              responseText += block.text;
+            }
+          }
+        }
       }
-    }
-
-    if (!hasResult && responseText) {
-      console.log('No result message, using collected text');
     }
 
     if (!responseText) {
