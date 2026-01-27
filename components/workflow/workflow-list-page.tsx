@@ -122,7 +122,7 @@ export function WorkflowListPage() {
 
   const handleDuplicate = async (workflow: WorkflowMetadata) => {
     try {
-      const newId = `workflow_${Date.now()}`;
+      const newId = `workflow_${crypto.randomUUID()}`;
       const newWorkflow = {
         id: newId,
         name: `${workflow.name} (${zh.workflow.copy})`,

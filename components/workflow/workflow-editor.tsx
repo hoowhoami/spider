@@ -238,7 +238,7 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
   );
 
   const saveWorkflow = useCallback(async () => {
-    const id = currentWorkflowId || `workflow_${Date.now()}`;
+    const id = currentWorkflowId || `workflow_${crypto.randomUUID()}`;
     const workflow = {
       id,
       name: workflowName,
@@ -286,7 +286,7 @@ function WorkflowEditorContent({ workflowId }: WorkflowEditorContentProps) {
 
   const exportWorkflow = useCallback(() => {
     const workflow: Workflow = {
-      id: `workflow_${Date.now()}`,
+      id: `workflow_${crypto.randomUUID()}`,
       name: workflowName,
       nodes: nodes as unknown as WorkflowNode[],
       edges: edges,
